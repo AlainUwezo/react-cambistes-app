@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import {
   Dialog,
@@ -7,22 +8,25 @@ import {
   TextField,
   Button,
   Typography,
+  CircularProgress,
 } from "@mui/material";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 interface ConfigurerTauxProps {
   open: boolean;
   onClose: () => void;
   exchangeRate: number; // Taux d'intérêt actuel
   setExchangeRate: (rate: number) => void; // Fonction pour mettre à jour le taux
+  setIsChangedData: any;
 }
 
 const ConfigurerTaux: React.FC<ConfigurerTauxProps> = ({
   open,
   onClose,
   exchangeRate,
-  setExchangeRate,
 }) => {
-  const [rate, setRate] = useState<number>(exchangeRate); // État pour le taux
+  const [rate, setRate] = useState<number>(exchangeRate);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleRateChange = (value: string) => {
     const numericValue = parseFloat(value);
@@ -33,9 +37,11 @@ const ConfigurerTaux: React.FC<ConfigurerTauxProps> = ({
     }
   };
 
-  const handleSubmit = () => {
-    setExchangeRate(rate); // Mettre à jour le taux d'intérêt dans le parent
-    onClose(); // Fermer le dialogue après soumission
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    await supabase.from("config").update({ interest_rate: rate }).eq("id", 1);
+    setIsLoading(false);
+    onClose();
   };
 
   return (
@@ -45,6 +51,9 @@ const ConfigurerTaux: React.FC<ConfigurerTauxProps> = ({
         <Typography variant="body1" marginBottom={2}>
           Définissez le taux d'intérêt appliqué aux prêts. Ce taux sera utilisé
           pour calculer le montant total à rembourser.
+        </Typography>
+        <Typography variant="body1" marginBottom={2}>
+          Taux actuel : <strong>{exchangeRate}%</strong>
         </Typography>
         <TextField
           label="Taux d'intérêt (%)"
@@ -63,7 +72,11 @@ const ConfigurerTaux: React.FC<ConfigurerTauxProps> = ({
           Annuler
         </Button>
         <Button onClick={handleSubmit} color="primary" disabled={rate < 0}>
-          Enregistrer
+          {!isLoading ? (
+            <span>Enregistrer</span>
+          ) : (
+            <CircularProgress size={20} />
+          )}
         </Button>
       </DialogActions>
     </Dialog>

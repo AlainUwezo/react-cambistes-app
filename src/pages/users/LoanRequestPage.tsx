@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextField,
   Button,
@@ -9,6 +9,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
+  Alert, // Importer le composant Alert
 } from "@mui/material";
 import UserPageContainer from "../../layouts/UserPageContainer";
 import {
@@ -20,8 +22,11 @@ import {
   Send,
   Person,
 } from "@mui/icons-material";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 const LoanRequestPage = () => {
+  const { userInfo } = useAuth();
   const [phone, setPhone] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -35,11 +40,47 @@ const LoanRequestPage = () => {
   const [activity, setActivity] = useState("");
   const [repaymentDate, setRepaymentDate] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [alertMessage, setAlertMessage] = useState(""); // État pour le message d'alerte
+  const [alertSeverity, setAlertSeverity] = useState<"success" | "error">(
+    "error"
+  ); // État pour le type d'alerte
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const checkPendingRequest = async () => {
+      const { data, error } = await supabase
+        .from("DemandeCredit")
+        .select("*")
+        .eq("account_id", userInfo.id)
+        .eq("statut", "ATTENTE");
+
+      if (error) {
+        console.error(
+          "Erreur lors de la vérification de la demande : ",
+          error.message
+        );
+      } else {
+        setHasPendingRequest(data.length > 0);
+      }
+    };
+
+    checkPendingRequest();
+  }, [userInfo.id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: string[] = [];
+
+    if (hasPendingRequest) {
+      newErrors.push(
+        "Vous avez déjà une demande en attente. Vous ne pouvez pas soumettre une nouvelle demande tant que celle-ci n'a pas été traitée."
+      );
+      setAlertMessage("Vous avez déjà une demande en attente."); // Définir le message d'alerte
+      setAlertSeverity("error"); // Définir le type d'alerte
+      return; // Ne pas continuer si une demande est en attente
+    }
 
     // Validation des champs requis
     if (!phone) newErrors.push("Le numéro de téléphone est requis.");
@@ -57,24 +98,38 @@ const LoanRequestPage = () => {
     if (newErrors.length > 0) {
       setErrors(newErrors);
     } else {
-      // Réinitialiser les erreurs
       setErrors([]);
-      // Afficher la boîte de dialogue de félicitations
-      setOpenDialog(true);
-      console.log({
-        phone,
-        firstName,
-        lastName,
-        middleName,
-        email,
-        address,
-        profession,
-        birthDate,
-        nationality,
-        loanAmount,
-        activity,
-        repaymentDate,
-      });
+      setLoading(true);
+      setAlertMessage(""); // Réinitialiser le message d'alerte
+
+      const { data, error } = await supabase.from("DemandeCredit").insert([
+        {
+          prenom: firstName,
+          nom: lastName,
+          post_nom: middleName,
+          email,
+          adresse: address,
+          telephone: phone,
+          date_remboursement: repaymentDate,
+          date_naissance: birthDate,
+          nationalite: nationality,
+          montant: loanAmount,
+          statut: "ATTENTE",
+          activite: activity,
+          account_id: userInfo.id,
+        },
+      ]);
+
+      if (error) {
+        console.error("Erreur lors de l'enregistrement : ", error.message);
+        setErrors(["Une erreur s'est produite lors de la soumission."]);
+      } else {
+        setOpenDialog(true);
+        setAlertMessage("Votre demande a été soumise avec succès."); // Message d'alerte de succès
+        setAlertSeverity("success");
+      }
+
+      setLoading(false);
     }
   };
 
@@ -105,6 +160,12 @@ const LoanRequestPage = () => {
           Veuillez remplir le formulaire ci-dessous pour soumettre votre demande
           de prêt. Assurez-vous que toutes les informations sont correctes.
         </Typography>
+
+        {alertMessage && ( // Afficher le message d'alerte si présent
+          <Alert severity={alertSeverity} sx={{ mb: 2 }}>
+            {alertMessage}
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
@@ -244,7 +305,7 @@ const LoanRequestPage = () => {
 
             <Grid item xs={6}>
               <TextField
-                label="Montant en Francs Congolais (CDF)"
+                label="Montant du Prêt"
                 type="number"
                 value={loanAmount}
                 onChange={(e) => setLoanAmount(e.target.value)}
@@ -259,53 +320,49 @@ const LoanRequestPage = () => {
 
             <Grid item xs={12}>
               <TextField
-                label="Activité à effectuer"
+                label="Activité"
                 value={activity}
                 onChange={(e) => setActivity(e.target.value)}
-                multiline
-                rows={4}
                 sx={{ mb: 2 }}
                 fullWidth
                 required
               />
             </Grid>
+            {hasPendingRequest && (
+              <div className="bg-orange-700 p-4 rounded-md ms-4">
+                <Typography className="text-white">
+                  Vous ne pouvez pas soumettre une demande pour le moment. Vous
+                  avez une demande en cours de traitement...
+                </Typography>
+              </div>
+            )}
 
             <Grid item xs={12}>
               <Button
-                variant="contained"
                 type="submit"
-                sx={{
-                  mt: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                startIcon={<Send />}
+                variant="contained"
+                color="primary"
+                endIcon={loading ? <CircularProgress size={20} /> : <Send />}
+                disabled={loading || hasPendingRequest}
               >
-                Soumettre la demande
+                Soumettre
               </Button>
             </Grid>
-
-            {errors.length > 0 && (
-              <Grid item xs={12}>
-                <Box sx={{ color: "red", textAlign: "left", mb: 2 }}>
-                  {errors.map((error, index) => (
-                    <Typography key={index}>{`* ${error}`}</Typography>
-                  ))}
-                </Box>
-              </Grid>
-            )}
           </Grid>
         </form>
 
-        {/* Boîte de dialogue de félicitations */}
+        {errors.length > 0 && (
+          <Box sx={{ mt: 2, color: "red" }}>
+            {errors.map((error, index) => (
+              <Typography key={index}>{error}</Typography>
+            ))}
+          </Box>
+        )}
+
         <Dialog open={openDialog} onClose={handleCloseDialog}>
-          <DialogTitle>Félicitations !</DialogTitle>
+          <DialogTitle>Demande Soumise</DialogTitle>
           <DialogContent>
-            <Typography variant="body1">
-              Votre demande de prêt a été soumise avec succès. Nous vous
-              contacterons bientôt.
-            </Typography>
+            <Typography>Votre demande a été soumise avec succès.</Typography>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog} color="primary">

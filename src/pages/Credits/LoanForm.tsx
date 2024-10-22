@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -9,32 +10,98 @@ import {
   Autocomplete,
   Typography,
 } from "@mui/material";
+import { supabase } from "../../lib/helpers/superbaseClient";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface LoanFormProps {
   open: boolean;
   onClose: () => void;
-  exchangeRate: number; // Taux d'intérêt fixe
+  exchangeRate: number;
+  setIsChangedData: any;
 }
 
-const LoanForm: React.FC<LoanFormProps> = ({ open, onClose, exchangeRate }) => {
+const LoanForm: React.FC<LoanFormProps> = ({
+  open,
+  onClose,
+  exchangeRate,
+  setIsChangedData,
+}) => {
   const [borrower, setBorrower] = useState<string | null>(null);
   const [amount, setAmount] = useState<number | "">(0);
   const [totalRepayment, setTotalRepayment] = useState<number>(0);
+  const [borrowers, setBorrowers] = useState<{ name: string; id: string }[]>(
+    []
+  );
+  const [balance, setBalance] = useState<number>(0); // Stocker la balance disponible
+  const [loading, setLoading] = useState(false);
+  const { setBalanceChanged } = useAuth();
 
-  // Liste d'exemple pour l'autocomplétion
-  const borrowers = [
-    { name: "Alice" },
-    { name: "Bob" },
-    { name: "Charlie" },
-    { name: "David" },
-  ];
+  // Fetch les emprunteurs valides et la balance au chargement
+  useEffect(() => {
+    const fetchBorrowersAndBalance = async () => {
+      // Récupérer les account_id avec statut VALIDE
+      const { data: validRequests, error: requestError } = await supabase
+        .from("DemandeCredit")
+        .select("account_id")
+        .eq("statut", "VALIDE");
+
+      if (requestError) {
+        console.error(
+          "Erreur lors de la récupération des demandes valides :",
+          requestError
+        );
+        return;
+      }
+
+      const accountIds = validRequests.map((request) => request.account_id);
+
+      // Récupérer les comptes associés à ces account_ids
+      const { data: accounts, error: accountError } = await supabase
+        .from("Account")
+        .select("id, user_name")
+        .eq("role", "ROLE_CLIENT")
+        .in("id", accountIds);
+
+      if (accountError) {
+        console.error(
+          "Erreur lors de la récupération des emprunteurs :",
+          accountError
+        );
+      } else if (accounts) {
+        setBorrowers(
+          accounts.map((account) => ({
+            name: account.user_name,
+            id: account.id,
+          }))
+        );
+      }
+
+      // Récupérer la balance actuelle
+      const { data: balanceData, error: balanceError } = await supabase
+        .from("Balance")
+        .select("balance_cdf")
+        .single(); // On suppose qu'il y a une seule balance
+
+      if (balanceError) {
+        console.error(
+          "Erreur lors de la récupération de la balance :",
+          balanceError
+        );
+      } else if (balanceData) {
+        setBalance(balanceData.balance_cdf);
+      }
+    };
+
+    if (open) {
+      fetchBorrowersAndBalance();
+    }
+  }, [open]);
 
   const handleAmountChange = (value: string) => {
     const numericValue = parseFloat(value);
     setAmount(numericValue);
 
     if (!isNaN(numericValue)) {
-      // Calculer le montant total à rembourser
       const total = numericValue + (numericValue * exchangeRate) / 100;
       setTotalRepayment(total);
     } else {
@@ -42,14 +109,53 @@ const LoanForm: React.FC<LoanFormProps> = ({ open, onClose, exchangeRate }) => {
     }
   };
 
-  const handleSubmit = () => {
-    // Logique pour soumettre le formulaire (API ou autre)
-    console.log("Détails du prêt :", {
-      borrower,
-      amount,
-      totalRepayment,
-    });
-    onClose(); // Fermer le dialogue après soumission
+  const handleSubmit = async () => {
+    if (amount > balance) {
+      alert("Le montant du crédit dépasse la balance disponible.");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error: creditError } = await supabase.from("Credit").insert([
+      {
+        amount,
+        reste: amount,
+        interest: totalRepayment - +amount,
+        total: totalRepayment,
+        account_id: borrower,
+      },
+    ]);
+
+    if (creditError) {
+      console.error("Erreur lors de l'ajout du crédit :", creditError);
+    } else {
+      console.log("Crédit ajouté avec succès :", {
+        borrower,
+        amount,
+        totalRepayment,
+      });
+
+      // Mise à jour de la balance
+      const { error: balanceError } = await supabase
+        .from("Balance")
+        .update({ balance_cdf: balance - +amount })
+        .eq("id", 1); // Assumons que l'ID de la balance est 1 ou un autre identifiant unique
+
+      if (balanceError) {
+        console.error(
+          "Erreur lors de la mise à jour de la balance :",
+          balanceError
+        );
+      } else {
+        setBalanceChanged((prev) => !prev);
+        console.log("Balance mise à jour avec succès");
+      }
+    }
+
+    setLoading(false);
+    setIsChangedData((prev) => !prev);
+    onClose();
   };
 
   return (
@@ -60,7 +166,7 @@ const LoanForm: React.FC<LoanFormProps> = ({ open, onClose, exchangeRate }) => {
           options={borrowers}
           getOptionLabel={(option) => option.name}
           onChange={(event, newValue) =>
-            setBorrower(newValue ? newValue.name : null)
+            setBorrower(newValue ? newValue.id : null)
           }
           renderInput={(params) => (
             <TextField
@@ -88,6 +194,9 @@ const LoanForm: React.FC<LoanFormProps> = ({ open, onClose, exchangeRate }) => {
           Montant total à rembourser :{" "}
           <strong>{totalRepayment.toFixed(2)} FC</strong>
         </Typography>
+        <Typography variant="body2" color="error" marginTop={2}>
+          Balance disponible : {balance.toFixed(2)} FC
+        </Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="secondary">
@@ -96,9 +205,9 @@ const LoanForm: React.FC<LoanFormProps> = ({ open, onClose, exchangeRate }) => {
         <Button
           onClick={handleSubmit}
           color="primary"
-          disabled={!borrower || +amount <= 0}
+          disabled={!borrower || +amount <= 0 || loading || amount > balance}
         >
-          Soumettre
+          {loading ? "Ajout en cours..." : "Soumettre"}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,13 +1,32 @@
 import { Avatar, Button, Typography } from "@mui/material";
 import { Settings, Payment, Receipt, Add, Person } from "@mui/icons-material";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom"; // Importer NavLink
 import FundingDialog from "./FundingDialog"; // Assurez-vous d'importer votre composant de dialogue d'approvisionnement
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/helpers/superbaseClient";
 
 const Sidebar = () => {
   const [openFundingDialog, setOpenFundingDialog] = useState(false);
-  const currentBalance = 232000; // Montant actuel de la balance
+  const [currentBalance, setCurrentBalance] = useState(0);
+  const { userInfo, isBalanceChanged } = useAuth();
+
+  useEffect(() => {
+    fetchBalance();
+  }, [openFundingDialog, isBalanceChanged]);
+
+  const fetchBalance = async () => {
+    // Récupérer la balance actuelle avant la mise à jour pour l'historique
+    const { data: balanceData, error: balanceError } = await supabase
+      .from("Balance")
+      .select("*")
+      .single();
+
+    if (balanceError) throw balanceError;
+
+    setCurrentBalance(balanceData.balance_cdf);
+  };
 
   const handleOpenFundingDialog = () => {
     setOpenFundingDialog(true);
@@ -23,11 +42,16 @@ const Sidebar = () => {
       <div>
         {/* Sidebar Menu */}
         <div className="flex items-center space-x-3 mb-5">
-          <Avatar alt="Jennie C." src="/static/images/avatar/1.jpg" />
+          <Avatar
+            alt={userInfo?.user_name || "Invité"}
+            src="/static/images/avatar/1.jpg"
+          />
           <div className="flex flex-col">
-            <Typography className="text-black font-bold">Jennie C.</Typography>
+            <Typography className="text-black font-bold">
+              {userInfo?.user_name || "Invité"}
+            </Typography>
             <Typography className="text-gray-500 text-sm">
-              Rocket GmbH
+              {userInfo?.role ? "Resp. Transaction" : ""}
             </Typography>
           </div>
         </div>

@@ -1,14 +1,11 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AppBar,
   Tab,
   Tabs,
   IconButton,
-  TextField,
-  Typography,
-  Box,
   Button,
-  Modal,
+  CircularProgress,
 } from "@mui/material";
 import { Settings as SettingsIcon, Add as AddIcon } from "@mui/icons-material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
@@ -19,39 +16,71 @@ import LoanForm from "./LoanForm"; // Importation de LoanForm
 import ConfigurerTaux from "./ConfigurerTaux"; // Importation de ConfigurerTaux
 import { DataGrid } from "@mui/x-data-grid";
 import RepaymentDialog from "./RepaymentDialog"; // Importation du nouveau composant
+import { supabase } from "../../lib/helpers/superbaseClient";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
+import LoanRequestTab from "./LoanRequestTab";
 
 const CreditManager = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [startDate, setStartDate] = useState(dayjs());
   const [endDate, setEndDate] = useState(dayjs());
   const [openDialog, setOpenDialog] = useState(false);
-  const [openLoanForm, setOpenLoanForm] = useState(false);
   const [openConfigurerTaux, setOpenConfigurerTaux] = useState(false);
   const [openRepaymentDialog, setOpenRepaymentDialog] = useState(false);
-  const [credits, setCredits] = useState<any[]>([
-    {
-      id: 1,
-      submissionDate: "19-05-2024",
-      amount: 500,
-      interest: 50,
-      remainingAmount: 550,
-      attributionDate: "19-05-2024",
-      status: "Approved",
-    },
-    {
-      id: 2,
-      submissionDate: "19-05-2024",
-      amount: 300,
-      interest: 30,
-      remainingAmount: 330,
-      attributionDate: "19-05-2024",
-      status: "Pending",
-    },
-  ]);
-  const [exchangeRate, setExchangeRate] = useState<number>(5);
+  const [credits, setCredits] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]); // État pour stocker les comptes
+  const [exchangeRate, setExchangeRate] = useState<number>();
   const [selectedCredit, setSelectedCredit] = useState<any>(null);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isChangedData, setIsChangedData] = useState(false);
 
-  const handleTabChange = (event: any, newValue: any) => {
+  useEffect(() => {
+    getExchangeRate();
+    fetchAccounts(); // Récupérer les comptes au chargement
+    fetchCredits();
+  }, [openRepaymentDialog, isChangedData]);
+
+  const getExchangeRate = async () => {
+    const { data } = await supabase.from("config").select("*").single();
+    setExchangeRate(data.interest_rate);
+  };
+
+  const fetchAccounts = async () => {
+    const { data, error } = await supabase.from("Account").select("*");
+    if (error) {
+      console.error("Erreur lors de la récupération des comptes :", error);
+    } else {
+      setAccounts(data);
+    }
+  };
+
+  const fetchCredits = async () => {
+    setLoading(true); // Début du chargement
+    const { data, error } = await supabase.from("Credit").select("*");
+
+    if (error) {
+      console.error("Erreur lors de la récupération des crédits :", error);
+    } else {
+      // Associer les noms des utilisateurs aux crédits en utilisant account_id
+      const creditsWithNames = data.map((credit) => {
+        const account = accounts.find((acc) => acc.id === credit.account_id); // Liaison par account_id
+        return {
+          ...credit,
+          userName: account ? account.user_name : "Inconnu", // Utilisez "Inconnu" si aucun compte n'est trouvé
+        };
+      });
+      setCredits(creditsWithNames);
+    }
+    setLoading(false); // Fin du chargement
+  };
+
+  const handleTabChange = (_event: any, newValue: any) => {
     setSelectedTab(newValue);
   };
 
@@ -61,20 +90,6 @@ const CreditManager = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-  };
-
-  const handleAddCredit = () => {
-    const newCredit = {
-      id: credits.length + 1,
-      submissionDate: startDate,
-      amount: Math.random() * 1000,
-      interest: Math.random() * 100,
-      remainingAmount: Math.random() * 1000 + Math.random() * 100,
-      attributionDate: endDate,
-      status: "Pending",
-    };
-    setCredits([...credits, newCredit]);
-    handleCloseDialog();
   };
 
   const handleOpenRepaymentDialog = (credit: any) => {
@@ -92,7 +107,6 @@ const CreditManager = () => {
           return {
             ...c,
             remainingAmount: c.remainingAmount - amount,
-            status: c.remainingAmount - amount <= 0 ? "Paid" : c.status,
           };
         }
         return c;
@@ -102,10 +116,33 @@ const CreditManager = () => {
     }
   };
 
+  const handleOpenDeleteDialog = (credit: any) => {
+    setSelectedCredit(credit);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleDeleteCredit = async () => {
+    if (selectedCredit) {
+      const { error } = await supabase
+        .from("Credit")
+        .delete()
+        .eq("id", selectedCredit.id);
+
+      if (error) {
+        console.error("Erreur lors de la suppression du crédit :", error);
+      } else {
+        // Rafraîchir la liste des crédits après suppression
+        fetchCredits();
+      }
+      setOpenDeleteDialog(false); // Ferme la boîte de dialogue après suppression
+      setSelectedCredit(null);
+    }
+  };
+
   const columns = [
     {
-      field: "submissionDate",
-      headerName: "Date de Soumission",
+      field: "created_at",
+      headerName: "Date d'Attribution",
       width: 180,
     },
     {
@@ -119,28 +156,42 @@ const CreditManager = () => {
       width: 120,
     },
     {
-      field: "remainingAmount",
+      field: "reste",
       headerName: "Montant Restant",
       width: 180,
     },
     {
-      field: "attributionDate",
-      headerName: "Date d'Attribution",
+      field: "total",
+      headerName: "Total",
       width: 180,
     },
-    { field: "status", headerName: "Statut", width: 120 },
+    {
+      field: "userName",
+      headerName: "Noms", // Nouvelle colonne pour les noms
+      width: 180,
+    },
     {
       field: "action",
       headerName: "Action",
-      width: 130,
+      width: 260,
       renderCell: (params) => (
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={() => handleOpenRepaymentDialog(params.row)}
-        >
-          Rembourser
-        </Button>
+        <div>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => handleOpenRepaymentDialog(params.row)}
+          >
+            Rembourser
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => handleOpenDeleteDialog(params.row)}
+            style={{ marginLeft: 8 }}
+          >
+            Supprimer
+          </Button>
+        </div>
       ),
     },
   ];
@@ -160,7 +211,7 @@ const CreditManager = () => {
             indicatorColor="primary"
           >
             <Tab label="Crédits" />
-            <Tab label="Historique" />
+            <Tab label="Demandes de prêts" />
           </Tabs>
         </AppBar>
         {/* Filter Elements - DatePickers and Buttons */}
@@ -196,37 +247,67 @@ const CreditManager = () => {
         </div>
       </div>
 
-      {/* DataGrid for Credits */}
-      <div className="grid grid-cols-1">
-        <DataGrid
-          rows={credits}
-          columns={columns}
-          pageSize={5}
-          rowsPerPageOptions={[5]}
-          disableSelectionOnClick
-        />
-      </div>
+      {/* Loader while fetching credits */}
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <CircularProgress />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1">
+          {/* DataGrid for Credits */}
+          {selectedTab === 0 ? (
+            <DataGrid
+              rows={credits}
+              columns={columns}
+              pageSize={5}
+              rowsPerPageOptions={[5]}
+              disableSelectionOnClick
+              autoHeight
+              getRowId={(row) => row.id}
+            />
+          ) : (
+            <LoanRequestTab />
+          )}
+        </div>
+      )}
 
+      {/* Dialogs for adding loans, configuring rates, and repayments */}
       <LoanForm
         open={openDialog}
+        setIsChangedData={setIsChangedData}
         onClose={handleCloseDialog}
-        exchangeRate={exchangeRate}
       />
-      {/* Modal for Repayment */}
+      <ConfigurerTaux
+        open={openConfigurerTaux}
+        exchangeRate={exchangeRate}
+        onClose={() => setOpenConfigurerTaux(false)}
+        setIsChangedData={setIsChangedData}
+      />
       <RepaymentDialog
         open={openRepaymentDialog}
         onClose={() => setOpenRepaymentDialog(false)}
-        selectedCredit={selectedCredit}
         onRepayment={handleRepayment}
+        selectedCredit={selectedCredit}
       />
 
-      {/* Modal for Configuring Interest Rate */}
-      <ConfigurerTaux
-        open={openConfigurerTaux}
-        onClose={() => setOpenConfigurerTaux(false)}
-        exchangeRate={exchangeRate}
-        setExchangeRate={setExchangeRate}
-      />
+      {/* Dialog for delete confirmation */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
+      >
+        <DialogTitle>Confirmation de Suppression</DialogTitle>
+        <DialogContent>
+          <p>Êtes-vous sûr de vouloir supprimer ce crédit ?</p>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteDialog(false)} color="primary">
+            Annuler
+          </Button>
+          <Button onClick={handleDeleteCredit} color="secondary">
+            Supprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

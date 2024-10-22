@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AppBar,
   Tab,
@@ -17,6 +17,7 @@ import dayjs from "dayjs";
 import TransactionsTable from "./TransactionTable";
 import ExchangeForm from "./ExchangeForm";
 import ConfigurerTaux from "./ConfigurerTaux"; // Importer le nouveau composant
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 const FilterSection = () => {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -24,7 +25,17 @@ const FilterSection = () => {
   const [endDate, setEndDate] = useState(dayjs());
   const [openDialog, setOpenDialog] = useState(false);
   const [openRateDialog, setOpenRateDialog] = useState(false);
-  const [exchangeRate, setExchangeRate] = useState(2800); // Taux de change par défaut
+  const [exchangeRate, setExchangeRate] = useState();
+  const [isChangedData, setIsChangedData] = useState(false);
+
+  useEffect(() => {
+    getExchangeRate();
+  }, []);
+
+  const getExchangeRate = async () => {
+    const { data } = await supabase.from("config").select("*").single();
+    setExchangeRate(data.change_rate);
+  };
 
   const handleTabChange = (event: any, newValue: any) => {
     setSelectedTab(newValue);
@@ -60,8 +71,7 @@ const FilterSection = () => {
             textColor="primary"
             indicatorColor="primary"
           >
-            <Tab label="Récents" />
-            <Tab label="Historiques" />
+            <Tab label="Liste des transactions" />
           </Tabs>
         </AppBar>
         {/* Filter Elements - DatePickers and Buttons */}
@@ -146,7 +156,11 @@ const FilterSection = () => {
       </div>
 
       {/* Dialog for Exchange Form */}
-      <ExchangeForm open={openDialog} onClose={handleCloseDialog} />
+      <ExchangeForm
+        open={openDialog}
+        onClose={handleCloseDialog}
+        setIsChangedData={setIsChangedData}
+      />
       {/* Dialog for Configurer Taux */}
       <ConfigurerTaux
         open={openRateDialog}
@@ -161,13 +175,8 @@ const FilterSection = () => {
         <Box display="flex" alignItems="center" className="flex-grow">
           {selectedTab === 0 && (
             <div>
-              <TransactionsTable />
+              <TransactionsTable isChange={isChangedData} />
             </div>
-          )}
-          {selectedTab === 1 && (
-            <Typography variant="h6" className="mr-4">
-              Contenu Historiques
-            </Typography>
           )}
         </Box>
       </div>

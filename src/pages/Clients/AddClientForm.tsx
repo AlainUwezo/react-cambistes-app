@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import {
   Button,
@@ -10,6 +11,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { Person, Email, Lock, Phone } from "@mui/icons-material";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 interface AddClientFormProps {
   open: boolean;
@@ -32,14 +34,75 @@ const AddClientForm: React.FC<AddClientFormProps> = ({
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
 
-  const handleSubmit = () => {
-    onAddClient({ name, email, password, phone });
-    // Réinitialisez les champs après soumission
-    setName("");
-    setEmail("");
-    setPassword("");
-    setPhone("");
-    onClose();
+  const handleSubmit = async () => {
+    try {
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+      if (signUpError) {
+        throw new Error(
+          `Erreur lors de l'inscription : ${signUpError.message}`
+        );
+      }
+
+      const newUser = signUpData?.user;
+      if (!newUser) {
+        throw new Error("Utilisateur non créé.");
+      }
+
+      // Étape 2: Ajouter des informations supplémentaires dans la table Client
+      const { error: insertError } = await supabase.from("Account").insert({
+        user_name: name,
+        telephone: phone,
+        auth_id: newUser.id,
+        email: email,
+        role: "ROLE_CLIENT",
+      });
+
+      if (insertError) {
+        throw new Error(
+          `Erreur lors de l'ajout du client : ${insertError.message}`
+        );
+      }
+
+      // Étape 3: Récupérer l'ID du nouveau client
+      const { data: newAccount, error: accountError } = await supabase
+        .from("Account")
+        .select("id")
+        .eq("auth_id", newUser.id)
+        .single();
+
+      if (accountError) {
+        throw new Error(
+          `Erreur lors de la récupération de l'ID du client : ${accountError.message}`
+        );
+      }
+
+      // Étape 4: Ajouter un enregistrement dans la table Fidelite
+      const { error: fidelityError } = await supabase.from("Fidelite").insert({
+        amount: 0,
+        account_id: newAccount.id,
+      });
+
+      if (fidelityError) {
+        throw new Error(
+          `Erreur lors de l'ajout du bonus de fidélité : ${fidelityError.message}`
+        );
+      }
+
+      // Réinitialiser les champs après la soumission
+      setName("");
+      setEmail("");
+      setPassword("");
+      setPhone("");
+      onAddClient({ name, email, password, phone });
+      onClose();
+    } catch (error: any) {
+      console.error(error.message);
+    }
   };
 
   return (

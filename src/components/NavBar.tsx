@@ -5,14 +5,20 @@ import {
   AttachMoney as MoneyIcon,
   AccountBalance as LoanIcon,
 } from "@mui/icons-material"; // Importation des icônes
+import { useAuth } from "../contexts/AuthContext";
 
 const NavBar = () => {
+  const { signOut } = useAuth();
+
   const navigate = useNavigate();
 
-  // Fonction pour gérer la déconnexion
-  const handleLogout = () => {
-    console.log("Déconnexion effectuée");
-    navigate("/"); // Redirection vers la page de connexion après déconnexion
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion :", error);
+    }
   };
 
   return (

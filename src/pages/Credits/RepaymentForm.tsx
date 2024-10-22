@@ -1,33 +1,66 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
-import { TextField, Button, Typography } from "@mui/material";
+import { TextField, Button, Typography, CircularProgress } from "@mui/material";
+import { supabase } from "../../lib/helpers/superbaseClient"; // Assurez-vous d'importer Supabase
 
 interface RepaymentFormProps {
   onRepayment: (amount: number) => void;
   onClose: () => void;
   remainingAmount: number; // Ajouter cette prop pour le montant restant
+  creditId: number; // Ajoutez cette prop pour l'ID du crédit
 }
 
 const RepaymentForm: React.FC<RepaymentFormProps> = ({
   onRepayment,
   onClose,
-  remainingAmount,
+  creditId,
 }) => {
   const [repaymentAmount, setRepaymentAmount] = useState<number | null>(null);
   const [balanceAfterRepayment, setBalanceAfterRepayment] = useState<
     number | null
   >(null);
+  const [loading, setLoading] = useState(false);
+  const [credit, setCredit] = useState<any>();
 
   useEffect(() => {
-    if (repaymentAmount !== null) {
-      setBalanceAfterRepayment(remainingAmount - repaymentAmount);
+    getCredit();
+  }, []);
+
+  useEffect(() => {
+    if (credit) {
+      if (repaymentAmount !== null) {
+        setBalanceAfterRepayment(credit.reste - repaymentAmount);
+      } else {
+        setBalanceAfterRepayment(null);
+      }
     } else {
       setBalanceAfterRepayment(null);
     }
-  }, [repaymentAmount, remainingAmount]);
+  }, [repaymentAmount, credit]);
 
-  const handleSubmit = () => {
+  const getCredit = async () => {
+    const { data } = await supabase
+      .from("Credit")
+      .select("*")
+      .eq("id", creditId);
+    if (data) setCredit(data[0]);
+  };
+  const handleSubmit = async () => {
     if (repaymentAmount !== null) {
-      onRepayment(repaymentAmount);
+      setLoading(true); // Active le loader
+      // Mettre à jour la table Credit avec le nouveau montant restant
+      const { data, error } = await supabase
+        .from("Credit")
+        .update({ reste: credit.reste - repaymentAmount })
+        .eq("id", creditId);
+
+      if (error) {
+        console.error("Erreur lors du remboursement:", error);
+      } else {
+        console.log("Remboursement enregistré:", data);
+        onRepayment(repaymentAmount); // Appel de la fonction de remboursement
+      }
+      setLoading(false); // Désactive le loader après le traitement
     }
   };
 
@@ -49,12 +82,15 @@ const RepaymentForm: React.FC<RepaymentFormProps> = ({
       <Button
         onClick={handleSubmit}
         color="primary"
-        disabled={balanceAfterRepayment != null && balanceAfterRepayment < 0}
+        disabled={
+          (balanceAfterRepayment != null && balanceAfterRepayment < 0) ||
+          loading
+        }
         variant="contained"
         fullWidth
         sx={{ marginTop: 2 }}
       >
-        Confirmer
+        {loading ? <CircularProgress size={24} /> : "Confirmer"}
       </Button>
       <Button
         onClick={onClose}

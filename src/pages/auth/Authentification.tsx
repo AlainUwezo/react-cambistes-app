@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import {
   TextField,
@@ -5,23 +6,38 @@ import {
   Typography,
   Box,
   InputAdornment,
+  CircularProgress, // Import du loader
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { AccountCircle, Lock } from "@mui/icons-material";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Authentication = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false); // État pour gérer le loader
   const navigate = useNavigate();
+  const { signIn, userInfo } = useAuth();
 
-  // Fonction pour gérer la connexion
-  const handleLogin = (e: React.FormEvent) => {
+  // Fonction pour gérer la connexion via Supabase
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === "utilisateur@example.com" && password === "motdepasse123") {
-      navigate("/home");
-    } else {
+    setError("");
+    setLoading(true); // Activation du loader au début de la requête
+    try {
+      // Utilisation de la méthode signIn pour l'authentification via Supabase
+      await signIn(email, password);
+      if (userInfo.role == "ROLE_CLIENT") {
+        navigate("/currency-check");
+      } else {
+        navigate("/home"); // Redirection vers la page d'accueil en cas de succès
+      }
+    } catch (err: any) {
+      console.log(err);
       setError("Adresse e-mail ou mot de passe incorrect");
+    } finally {
+      setLoading(false); // Désactivation du loader une fois la requête terminée
     }
   };
 
@@ -93,7 +109,7 @@ const Authentication = () => {
             </Typography>
           )}
 
-          {/* Bouton de soumission */}
+          {/* Bouton de soumission avec loader */}
           <Button
             type="submit"
             variant="contained"
@@ -103,9 +119,18 @@ const Authentication = () => {
               marginTop: "16px",
               padding: "12px",
               backgroundColor: "#1976d2",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
+            disabled={loading} // Désactiver le bouton pendant le chargement
           >
-            Se connecter
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Se connecter"
+            )}{" "}
+            {/* Affichage du loader ou du texte */}
           </Button>
         </form>
 

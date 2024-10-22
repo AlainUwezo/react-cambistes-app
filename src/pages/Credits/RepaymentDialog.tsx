@@ -40,7 +40,7 @@ const RepaymentDialog: React.FC<RepaymentDialogProps> = ({
         <RepaymentForm
           onRepayment={onRepayment}
           onClose={onClose}
-          remainingAmount={selectedCredit?.remainingAmount || 0} // Passer le montant restant
+          creditId={selectedCredit?.id}
         />
       </Box>
     </Modal>

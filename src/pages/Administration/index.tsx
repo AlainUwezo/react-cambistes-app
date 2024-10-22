@@ -1,9 +1,10 @@
 import PageContainer from "../../layouts/PageContainer";
+import AdminDashboard from "./AdminDashboard";
 
 const Administration = () => {
   return (
     <PageContainer>
-      <div>Administration</div>
+      <AdminDashboard />
     </PageContainer>
   );
 };

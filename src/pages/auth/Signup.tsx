@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import {
   TextField,
@@ -8,6 +9,7 @@ import {
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { AccountCircle, Lock } from "@mui/icons-material";
+import { useAuth } from "../../contexts/AuthContext";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
@@ -16,17 +18,22 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { signUp } = useAuth();
 
-  // Fonction pour gérer l'inscription
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas");
       return;
     }
-    // Ici, vous pourriez ajouter la logique pour l'inscription (API, etc.)
-    // Après une inscription réussie, on redirige l'utilisateur
-    navigate("/home");
+
+    try {
+      await signUp(email, password, username);
+      navigate("/home");
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de l'inscription");
+    }
   };
 
   return (
@@ -41,7 +48,6 @@ const Signup = () => {
           textAlign: "center",
         }}
       >
-        {/* Titre */}
         <Typography
           variant="h4"
           gutterBottom
@@ -53,9 +59,7 @@ const Signup = () => {
           Inscrivez-vous pour accéder à votre espace utilisateur
         </Typography>
 
-        {/* Formulaire */}
         <form onSubmit={handleSignup}>
-          {/* Champ Nom d'utilisateur */}
           <TextField
             fullWidth
             label="Nom d'utilisateur"
@@ -72,7 +76,6 @@ const Signup = () => {
             }}
           />
 
-          {/* Champ Email */}
           <TextField
             fullWidth
             label="Adresse e-mail"
@@ -89,7 +92,6 @@ const Signup = () => {
             }}
           />
 
-          {/* Champ Mot de passe */}
           <TextField
             fullWidth
             label="Mot de passe"
@@ -107,7 +109,6 @@ const Signup = () => {
             }}
           />
 
-          {/* Champ Confirmation mot de passe */}
           <TextField
             fullWidth
             label="Confirmer le mot de passe"
@@ -125,14 +126,12 @@ const Signup = () => {
             }}
           />
 
-          {/* Message d'erreur */}
           {error && (
             <Typography variant="body2" color="error" gutterBottom>
               {error}
             </Typography>
           )}
 
-          {/* Bouton de soumission */}
           <Button
             type="submit"
             variant="contained"
@@ -148,16 +147,13 @@ const Signup = () => {
           </Button>
         </form>
 
-        {/* Texte additionnel */}
         <Typography
           variant="body2"
           style={{ marginTop: "16px", color: "#555" }}
         >
           Vous avez déjà un compte ?{" "}
-          <Link to={"/"}>
-            <span style={{ color: "#1976d2", cursor: "pointer" }}>
-              Connectez-vous
-            </span>
+          <Link to={"/"} style={{ color: "#1976d2", fontWeight: "bold" }}>
+            Connectez-vous
           </Link>
         </Typography>
       </Box>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
   Button,
@@ -8,34 +8,89 @@ import {
   DialogContentText,
   DialogTitle,
   TextField,
+  CircularProgress,
 } from "@mui/material";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 interface Client {
   id: number;
   registrationDate: string;
-  name: string;
+  user_name: string;
   email: string;
-  currencyExchangeCount: number;
-  loanCount: number;
-  loyaltyBonus: number;
+  currencyExchangeCount: number; // Remplacez par la logique pour obtenir ces données si nécessaire
+  loanCount: number; // Remplacez par la logique pour obtenir ces données si nécessaire
+  loyaltyBonus: number; // Bonus de fidélité récupéré de la table Fidelite
 }
 
-interface ClientTableProps {
-  clients: Client[];
-  onUpdateBonus: (clientId: number, amount: number) => void;
-}
-
-const ClientTable: React.FC<ClientTableProps> = ({
-  clients,
-  onUpdateBonus,
-}) => {
+const ClientTable: React.FC = () => {
+  const [clients, setClients] = useState<Client[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [amount, setAmount] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false); // État pour le loader des données
+  const [loyaltyBonus, setLoyaltyBonus] = useState<number>(0); // État pour le bonus de fidélité disponible
+  const [dataLoading, setDataLoading] = useState<boolean>(true); // État pour le chargement des données
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      setDataLoading(true); // Démarrer le loader des données
+
+      const { data, error } = await supabase
+        .from("Account")
+        .select("id, user_name, email, role")
+        .eq("role", "ROLE_CLIENT");
+
+      if (error) {
+        console.error("Erreur lors de la récupération des clients:", error);
+      } else {
+        const enrichedClients = await Promise.all(
+          data.map(async (client) => {
+            // Récupérer les données supplémentaires pour chaque client
+            const { count: currencyExchangeCount } = await supabase
+              .from("Transaction")
+              .select("id", { count: "exact", head: true })
+              .eq("account_id", client.id);
+
+            const { count: loanCount } = await supabase
+              .from("Credit")
+              .select("id", { count: "exact", head: true })
+              .eq("account_id", client.id);
+
+            // Récupérer le bonus de fidélité depuis la table Fidelite
+            const { data: fidelityData, error: fidelityError } = await supabase
+              .from("Fidelite")
+              .select("amount")
+              .eq("account_id", client.id)
+              .single(); // Récupère un seul enregistrement
+
+            return {
+              id: client.id,
+              registrationDate: new Date().toISOString(), // Ajoutez une logique pour obtenir la date d'inscription
+              user_name: client.user_name,
+              email: client.email,
+              currencyExchangeCount: currencyExchangeCount || 0,
+              loanCount: loanCount || 0,
+              loyaltyBonus: fidelityData?.amount || 0, // Utiliser le montant de fidélité de la table Fidelite
+            };
+          })
+        );
+
+        setClients(enrichedClients);
+      }
+
+      setDataLoading(false); // Arrêter le loader des données
+    };
+
+    fetchClients();
+  }, []);
 
   const handleClickOpen = (clientId: number) => {
-    setSelectedClientId(clientId);
-    setOpen(true);
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      setLoyaltyBonus(client.loyaltyBonus); // Mettre à jour le bonus de fidélité disponible
+      setSelectedClientId(clientId);
+      setOpen(true);
+    }
   };
 
   const handleClose = () => {
@@ -43,26 +98,45 @@ const ClientTable: React.FC<ClientTableProps> = ({
     setAmount(0); // Réinitialiser le montant après la fermeture
   };
 
-  const handleConfirm = () => {
-    if (selectedClientId !== null) {
-      // Log l'ID du client et le montant retiré
-      console.log(`Client ID: ${selectedClientId}, Montant retiré: ${amount}`);
+  const handleConfirm = async () => {
+    if (selectedClientId !== null && amount <= loyaltyBonus) {
+      setLoading(true); // Démarrer le loader
 
-      // Mettez à jour le bonus de fidélité du client
-      onUpdateBonus(selectedClientId, amount);
+      // Mettre à jour le bonus de fidélité du client
+      const { error } = await supabase
+        .from("Fidelite")
+        .update({ amount: loyaltyBonus - amount }) // Réduire le montant de fidélité
+        .eq("account_id", selectedClientId);
+
+      if (error) {
+        console.error(
+          "Erreur lors de la mise à jour du bonus de fidélité:",
+          error
+        );
+      } else {
+        // Mettre à jour le tableau des clients
+        const updatedClients = clients.map((client) =>
+          client.id === selectedClientId
+            ? { ...client, loyaltyBonus: loyaltyBonus - amount } // Mettre à jour le montant dans l'état local
+            : client
+        );
+        setClients(updatedClients);
+      }
+
       handleClose();
+      setLoading(false); // Arrêter le loader
+    } else {
+      alert(
+        "Le montant ne peut pas être supérieur au bonus de fidélité disponible."
+      );
     }
   };
 
   const columns: GridColDef[] = [
     { field: "registrationDate", headerName: "Date d'inscription", width: 180 },
-    { field: "name", headerName: "Noms", width: 200 },
+    { field: "user_name", headerName: "Noms", width: 200 },
     { field: "email", headerName: "Email", width: 250 },
-    {
-      field: "currencyExchangeCount",
-      headerName: "Nb change",
-      width: 100,
-    },
+    { field: "currencyExchangeCount", headerName: "Nb change", width: 100 },
     { field: "loanCount", headerName: "Prêts octroyés", width: 150 },
     { field: "loyaltyBonus", headerName: "Bonus de fidélité", width: 150 },
     {
@@ -83,21 +157,27 @@ const ClientTable: React.FC<ClientTableProps> = ({
 
   return (
     <div className="grid grid-cols-1">
-      <DataGrid
-        rows={clients}
-        columns={columns}
-        pageSize={5}
-        rowsPerPageOptions={[5, 10, 20]}
-        checkboxSelection={false}
-        disableSelectionOnClick
-      />
+      {dataLoading ? ( // Afficher le loader pendant le chargement des données
+        <div className="flex justify-center items-center">
+          <CircularProgress />
+        </div>
+      ) : (
+        <DataGrid
+          rows={clients}
+          columns={columns}
+          pageSize={5}
+          rowsPerPageOptions={[5, 10, 20]}
+          checkboxSelection={false}
+          disableSelectionOnClick
+        />
+      )}
 
       <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Attribuer Bonus de Fidélité</DialogTitle>
+        <DialogTitle>Retirer Bonus de Fidélité</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Veuillez entrer le montant du bonus de fidélité que vous souhaitez
-            retirer.
+            retirer. Montant disponible : {loyaltyBonus}
           </DialogContentText>
           <TextField
             autoFocus
@@ -108,14 +188,17 @@ const ClientTable: React.FC<ClientTableProps> = ({
             variant="outlined"
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
+            inputProps={{
+              max: loyaltyBonus, // Limite le montant maximal
+            }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose} color="primary">
             Annuler
           </Button>
-          <Button onClick={handleConfirm} color="primary">
-            Entrer
+          <Button onClick={handleConfirm} color="primary" disabled={loading}>
+            {loading ? "Chargement..." : "Entrer"}
           </Button>
         </DialogActions>
       </Dialog>

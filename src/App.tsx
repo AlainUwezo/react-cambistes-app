@@ -1,29 +1,78 @@
-import { StyledEngineProvider } from "@mui/material";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom"; // Importer les composants de routage
-import Home from "./pages/Home/Home"; // Assurez-vous d'importer vos pages
-import Credits from "./pages/Credits/Credits";
-import Clients from "./pages/Clients/Clients";
-import Authentication from "./pages/auth/Authentification";
-import CurrencyCheckPage from "./pages/users/CurrencyCheckPage";
-import LoanRequestPage from "./pages/users/LoanRequestPage";
-import Signup from "./pages/auth/Signup";
-import Administration from "./pages/Administration";
+import { StyledEngineProvider, CircularProgress, Box } from "@mui/material";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./layouts/ProtectedRoute";
+import React, { Suspense, lazy } from "react";
+
+// Lazy loading des pages
+const Home = lazy(() => import("./pages/Home/Home"));
+const Credits = lazy(() => import("./pages/Credits/Credits"));
+const Clients = lazy(() => import("./pages/Clients/Clients"));
+const Authentication = lazy(() => import("./pages/auth/Authentification"));
+const CurrencyCheckPage = lazy(() => import("./pages/users/CurrencyCheckPage"));
+const LoanRequestPage = lazy(() => import("./pages/users/LoanRequestPage"));
+const Signup = lazy(() => import("./pages/auth/Signup"));
+const Administration = lazy(() => import("./pages/Administration"));
+
+// Loader personnalisé
+const Loader = () => (
+  <Box
+    display="flex"
+    justifyContent="center"
+    alignItems="center"
+    height="100vh"
+  >
+    <CircularProgress />
+  </Box>
+);
 
 function App() {
   return (
     <StyledEngineProvider injectFirst>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Authentication />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/credits" element={<Credits />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/signup" element={<Signup />} />{" "}
-          <Route path="/administration" element={<Administration />} />
-          <Route path="/currency-check" element={<CurrencyCheckPage />} />
-          <Route path="/loan-request" element={<LoanRequestPage />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Suspense fallback={<Loader />}>
+            <Routes>
+              <Route path="/" element={<Authentication />} />
+              <Route
+                path="/home"
+                element={
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/credits"
+                element={
+                  <ProtectedRoute>
+                    <Credits />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/clients"
+                element={
+                  <ProtectedRoute>
+                    <Clients />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/signup" element={<Signup />} />
+              <Route
+                path="/administration"
+                element={
+                  <ProtectedRoute>
+                    <Administration />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/currency-check" element={<CurrencyCheckPage />} />
+              <Route path="/loan-request" element={<LoanRequestPage />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </AuthProvider>
     </StyledEngineProvider>
   );
 }

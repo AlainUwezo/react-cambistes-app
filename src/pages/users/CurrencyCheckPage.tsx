@@ -1,21 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TextField, Typography, Button, Box, Alert } from "@mui/material";
-import AttachMoneyIcon from "@mui/icons-material/AttachMoney"; // Importer l'icône
+import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import UserPageContainer from "../../layouts/UserPageContainer";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 const CurrencyCheckPage = () => {
   const [usdAmount, setUsdAmount] = useState("");
   const [cdfAmount, setCdfAmount] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const availableCdf = 1000000; // Montant disponible en CDF
-  const exchangeRate = 2800; // Taux de conversion fixe
+  const [availableCdf, setAvailableCdf] = useState<number | null>(null);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchBalanceAndRate = async () => {
+      // Récupérer le solde CDF
+      const { data: balanceData, error: balanceError } = await supabase
+        .from("Balance")
+        .select("balance_cdf")
+        .single();
+
+      // Récupérer le taux de change
+      const { data: configData, error: configError } = await supabase
+        .from("config")
+        .select("change_rate")
+        .single();
+
+      if (balanceError || configError) {
+        console.error(
+          "Erreur lors de la récupération des données :",
+          balanceError || configError
+        );
+      } else {
+        setAvailableCdf(balanceData.balance_cdf);
+        setExchangeRate(configData.change_rate);
+      }
+    };
+
+    fetchBalanceAndRate();
+  }, []);
 
   const handleConvert = () => {
+    if (exchangeRate === null) return; // Assurez-vous que le taux de change est chargé
+
     const usd = parseFloat(usdAmount);
     const cdf = usd * exchangeRate;
 
     // Vérifier si le montant dépasse ce qui est disponible
-    if (cdf > availableCdf) {
+    if (availableCdf !== null && cdf > availableCdf) {
       const remainingUsd = availableCdf / exchangeRate;
       setErrorMessage(
         `Le montant demandé dépasse le montant disponible. Il reste ${availableCdf} CDF (${remainingUsd.toFixed(
@@ -37,7 +68,7 @@ const CurrencyCheckPage = () => {
           textAlign: "center",
           maxWidth: "600px",
           mx: "auto",
-          px: { xs: 2, sm: 3 }, // Ajout de marges horizontales pour mobile
+          px: { xs: 2, sm: 3 },
         }}
       >
         <Typography variant="h4" gutterBottom fontWeight="bold">
@@ -49,7 +80,7 @@ const CurrencyCheckPage = () => {
           variant="body1"
           sx={{
             mb: 3,
-            fontSize: { xs: "0.9rem", sm: "1rem" }, // Ajustement de la taille du texte
+            fontSize: { xs: "0.9rem", sm: "1rem" },
             color: "gray",
             lineHeight: "1.5",
           }}
@@ -58,6 +89,9 @@ const CurrencyCheckPage = () => {
           (USD) en Francs Congolais (CDF) en fonction du taux de change actuel.
           Si le montant en francs demandé dépasse le montant disponible, nous
           vous indiquerons ce qui est encore disponible.
+        </Typography>
+        <Typography className="mb-4">
+          Taux de change: <strong>{exchangeRate}</strong>
         </Typography>
 
         {/* Input pour le montant en USD */}
@@ -76,8 +110,8 @@ const CurrencyCheckPage = () => {
             onChange={(e) => setUsdAmount(e.target.value)}
             sx={{
               mb: 2,
-              width: "100%", // Utilisation de 100% pour les petits écrans
-              maxWidth: "400px", // Limite la largeur sur les écrans plus grands
+              width: "100%",
+              maxWidth: "400px",
               "& input": { fontSize: "1.2rem", padding: "12px" },
               "& label": { fontSize: "1.2rem" },
             }}
@@ -91,8 +125,8 @@ const CurrencyCheckPage = () => {
             onClick={handleConvert}
             className="capitalize"
             sx={{
-              width: "80%", // Utilisation de 80% pour les petits écrans
-              maxWidth: "300px", // Limite la largeur sur les écrans plus grands
+              width: "80%",
+              maxWidth: "300px",
               fontSize: "1.1rem",
               padding: "10px 20px",
               backgroundColor: "#007bff",
@@ -101,12 +135,11 @@ const CurrencyCheckPage = () => {
                 backgroundColor: "#0056b3",
               },
               display: "flex",
-              alignItems: "center", // Aligner l'icône et le texte
-              justifyContent: "center", // Centrer le contenu
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <AttachMoneyIcon sx={{ mr: 1 }} />{" "}
-            {/* Ajout de l'icône avec un espacement */}
+            <AttachMoneyIcon sx={{ mr: 1 }} />
             Convertir (CDF)
           </Button>
         </Box>

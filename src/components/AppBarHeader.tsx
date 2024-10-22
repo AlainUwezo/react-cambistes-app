@@ -4,14 +4,47 @@ import {
   IconButton,
   InputBase,
   Typography,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Button,
 } from "@mui/material";
 import {
   Search as SearchIcon,
-  MoreVert as MoreIcon,
+  ExitToApp as LogoutIcon,
 } from "@mui/icons-material";
 import { FaBell } from "react-icons/fa";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const Header = () => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const [openDialog, setOpenDialog] = useState(false); // État pour gérer l'ouverture de la boîte de dialogue
+
+  // Fonction pour gérer la déconnexion
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion :", error);
+    }
+  };
+
+  // Fonction pour ouvrir la boîte de dialogue
+  const handleOpenDialog = () => {
+    setOpenDialog(true);
+  };
+
+  // Fonction pour fermer la boîte de dialogue
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
   return (
     <AppBar position="static" elevation={0} className="bg-white pt-6">
       <Toolbar className="flex justify-between">
@@ -39,11 +72,44 @@ const Header = () => {
           <IconButton>
             <FaBell size={20} className="text-black" />
           </IconButton>
-          <IconButton>
-            <MoreIcon className="text-black" />
+          {/* Logout Icon */}
+          <IconButton onClick={handleOpenDialog} className="text-black">
+            <LogoutIcon />
           </IconButton>
         </div>
       </Toolbar>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Confirmer la déconnexion"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Êtes-vous sûr de vouloir vous déconnecter ?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="primary">
+            Annuler
+          </Button>
+          <Button
+            onClick={() => {
+              handleLogout(); // Déclenche la déconnexion
+              handleCloseDialog(); // Ferme la boîte de dialogue
+            }}
+            color="primary"
+            autoFocus
+          >
+            Déconnexion
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AppBar>
   );
 };

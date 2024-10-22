@@ -8,7 +8,9 @@ import {
   Typography,
   DialogActions,
   Button,
+  CircularProgress,
 } from "@mui/material";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 interface ConfigurerTauxProps {
   open: boolean;
@@ -24,10 +26,14 @@ const ConfigurerTaux: React.FC<ConfigurerTauxProps> = ({
   setExchangeRate,
 }) => {
   const [newRate, setNewRate] = useState(exchangeRate);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSave = () => {
-    setExchangeRate(newRate); // Mettre à jour le taux de change
-    onClose(); // Fermer le dialogue
+  const handleSave = async () => {
+    setIsLoading(true);
+    await supabase.from("config").update({ change_rate: newRate }).eq("id", 1);
+    setExchangeRate(newRate);
+    setIsLoading(false);
+    onClose();
   };
 
   return (
@@ -69,7 +75,11 @@ const ConfigurerTaux: React.FC<ConfigurerTauxProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleSave} color="primary" variant="contained">
-          Enregistrer
+          {isLoading ? (
+            <CircularProgress className="text-white fill-white" size={20} />
+          ) : (
+            <span>Enregistrer</span>
+          )}
         </Button>
         <Button onClick={onClose} color="secondary">
           Annuler
