@@ -21,15 +21,29 @@ const RepaymentForm: React.FC<RepaymentFormProps> = ({
   >(null);
   const [loading, setLoading] = useState(false);
   const [credit, setCredit] = useState<any>();
+  const [exchangeRate, setExchangeRate] = useState<number>();
 
   useEffect(() => {
     getCredit();
   }, []);
 
+  const getExchangeRate = async () => {
+    const { data: configData } = await supabase
+      .from("config")
+      .select("*")
+      .single();
+
+    console.log("Data exchange", configData);
+
+    setExchangeRate(configData.change_rate);
+  };
+
   useEffect(() => {
+    getExchangeRate();
+
     if (credit) {
-      if (repaymentAmount !== null) {
-        setBalanceAfterRepayment(credit.reste - repaymentAmount);
+      if (repaymentAmount !== null && exchangeRate) {
+        setBalanceAfterRepayment(credit.reste - repaymentAmount * exchangeRate);
       } else {
         setBalanceAfterRepayment(null);
       }
@@ -43,24 +57,27 @@ const RepaymentForm: React.FC<RepaymentFormProps> = ({
       .from("Credit")
       .select("*")
       .eq("id", creditId);
+
     if (data) setCredit(data[0]);
   };
   const handleSubmit = async () => {
-    if (repaymentAmount !== null) {
+    if (repaymentAmount !== null && exchangeRate) {
       setLoading(true); // Active le loader
       // Mettre à jour la table Credit avec le nouveau montant restant
       const { data, error } = await supabase
         .from("Credit")
-        .update({ reste: credit.reste - repaymentAmount })
+        .update({
+          reste: credit.reste - repaymentAmount * exchangeRate,
+        })
         .eq("id", creditId);
 
       if (error) {
         console.error("Erreur lors du remboursement:", error);
       } else {
         console.log("Remboursement enregistré:", data);
-        onRepayment(repaymentAmount); // Appel de la fonction de remboursement
+        onRepayment(repaymentAmount);
       }
-      setLoading(false); // Désactive le loader après le traitement
+      setLoading(false);
     }
   };
 
@@ -68,7 +85,7 @@ const RepaymentForm: React.FC<RepaymentFormProps> = ({
     <div className="flex flex-col items-center">
       <TextField
         type="number"
-        label="Montant à rembourser"
+        label="Montant à rembourser ($)"
         value={repaymentAmount || ""}
         onChange={(e) => setRepaymentAmount(Number(e.target.value))}
         variant="outlined"
@@ -77,7 +94,7 @@ const RepaymentForm: React.FC<RepaymentFormProps> = ({
       />
       <Typography variant="body1" color="textSecondary" sx={{ marginTop: 2 }}>
         Montant restant après remboursement :{" "}
-        {balanceAfterRepayment && balanceAfterRepayment.toFixed(2)} $
+        {balanceAfterRepayment && balanceAfterRepayment.toFixed(2)} FC
       </Typography>
       <Button
         onClick={handleSubmit}

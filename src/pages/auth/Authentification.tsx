@@ -28,6 +28,8 @@ const Authentication = () => {
     try {
       // Utilisation de la méthode signIn pour l'authentification via Supabase
       await signIn(email, password);
+
+      console.log("User infos ", userInfo);
       if (userInfo.role == "ROLE_CLIENT") {
         navigate("/currency-check");
       } else {

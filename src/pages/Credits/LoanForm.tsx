@@ -120,7 +120,7 @@ const LoanForm: React.FC<LoanFormProps> = ({
     const { error: creditError } = await supabase.from("Credit").insert([
       {
         amount,
-        reste: amount,
+        reste: totalRepayment,
         interest: totalRepayment - +amount,
         total: totalRepayment,
         account_id: borrower,
@@ -140,7 +140,9 @@ const LoanForm: React.FC<LoanFormProps> = ({
       const { error: balanceError } = await supabase
         .from("Balance")
         .update({ balance_cdf: balance - +amount })
-        .eq("id", 1); // Assumons que l'ID de la balance est 1 ou un autre identifiant unique
+        .eq("id", 1);
+
+      setBalanceChanged((prev) => !prev);
 
       if (balanceError) {
         console.error(
@@ -148,18 +150,24 @@ const LoanForm: React.FC<LoanFormProps> = ({
           balanceError
         );
       } else {
-        setBalanceChanged((prev) => !prev);
         console.log("Balance mise à jour avec succès");
       }
     }
 
     setLoading(false);
+    setBorrower(null);
     setIsChangedData((prev) => !prev);
     onClose();
   };
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog
+      open={open}
+      onClose={() => {
+        setBorrower(null);
+        onClose();
+      }}
+    >
       <DialogTitle>Formulaire de Prêt</DialogTitle>
       <DialogContent>
         <Autocomplete
@@ -199,13 +207,19 @@ const LoanForm: React.FC<LoanFormProps> = ({
         </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="secondary">
+        <Button
+          onClick={() => {
+            setBorrower(null);
+            onClose();
+          }}
+          color="secondary"
+        >
           Annuler
         </Button>
         <Button
           onClick={handleSubmit}
           color="primary"
-          disabled={!borrower || +amount <= 0 || loading || amount > balance}
+          disabled={!borrower || +amount <= 0 || loading || +amount > balance}
         >
           {loading ? "Ajout en cours..." : "Soumettre"}
         </Button>

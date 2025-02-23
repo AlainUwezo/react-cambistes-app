@@ -26,6 +26,17 @@ const DashboardKPI = () => {
   useEffect(() => {
     const fetchKPIData = async () => {
       try {
+        const { data: balanceActuelle, error: errorBalance } = await supabase
+          .from("Balance")
+          .select("*")
+          .single();
+
+        if (errorBalance) throw errorBalance;
+
+        if (balanceActuelle) {
+          setBalanceCdf(balanceActuelle.balance_cdf);
+        }
+
         // Fetch balance actuelle
         const { data: balanceData, error: balanceError } = await supabase
           .from("BalanceHistory")
@@ -35,7 +46,6 @@ const DashboardKPI = () => {
         if (balanceError) throw new Error("Error fetching balance");
 
         if (balanceData && balanceData.length > 0) {
-          setBalanceCdf(balanceData[0]?.balance_cdf);
           setBalanceHistory(balanceData); // Stocke l'historique des balances
         }
 

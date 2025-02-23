@@ -35,7 +35,8 @@ const RepaymentDialog: React.FC<RepaymentDialogProps> = ({
         }}
       >
         <Typography variant="h6" component="h2" gutterBottom>
-          Rembourser le Crédit ID {selectedCredit?.id}
+          Rembourser le Crédit
+          {/* ID {selectedCredit?.id} */}
         </Typography>
         <RepaymentForm
           onRepayment={onRepayment}

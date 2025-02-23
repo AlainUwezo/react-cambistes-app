@@ -46,7 +46,6 @@ const ExchangeForm: React.FC<ExchangeFormProps> = ({
   const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
     "success"
   );
-
   // Récupère le taux de change au chargement du composant
   useEffect(() => {
     getExchangeRate();
@@ -72,6 +71,7 @@ const ExchangeForm: React.FC<ExchangeFormProps> = ({
       .from("Account")
       .select("id, user_name")
       .eq("role", "ROLE_CLIENT");
+
     if (error) {
       console.error("Erreur lors de la récupération des clients :", error);
     } else {
@@ -201,7 +201,8 @@ const ExchangeForm: React.FC<ExchangeFormProps> = ({
       );
       setSnackbarSeverity("success");
       setSnackbarOpen(true);
-      setIsChangedData((prev) => !prev);
+      setIsChangedData((prev: any) => !prev);
+      setBalanceChanged((prev: any) => !prev);
       // Fermer le dialogue après conversion
       onClose();
       // Réinitialiser les champs

@@ -29,7 +29,7 @@ const columns: GridColDef[] = [
   { field: "amount", headerName: "Montant ($)", type: "number", width: 110 },
   {
     field: "amount_changed",
-    headerName: "Montant modifié ($)",
+    headerName: "Montant changé (FC)",
     type: "number",
     width: 150,
   },

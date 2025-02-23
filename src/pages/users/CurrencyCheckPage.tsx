@@ -107,7 +107,15 @@ const CurrencyCheckPage = () => {
             label="Montant en USD"
             type="number"
             value={usdAmount}
-            onChange={(e) => setUsdAmount(e.target.value)}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value);
+              if (value >= 1 || e.target.value === "") {
+                setUsdAmount(e.target.value);
+                setErrorMessage("");
+              } else {
+                setErrorMessage("Le montant doit être supérieur ou égal à 1");
+              }
+            }}
             sx={{
               mb: 2,
               width: "100%",

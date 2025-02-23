@@ -11,6 +11,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { supabase } from "../../lib/helpers/superbaseClient";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface Client {
   id: number;
@@ -30,6 +31,7 @@ const ClientTable: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false); // État pour le loader des données
   const [loyaltyBonus, setLoyaltyBonus] = useState<number>(0); // État pour le bonus de fidélité disponible
   const [dataLoading, setDataLoading] = useState<boolean>(true); // État pour le chargement des données
+  const { setBalanceChanged } = useAuth();
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -114,6 +116,21 @@ const ClientTable: React.FC = () => {
           error
         );
       } else {
+        const { data: balanceData, error: balanceError } = await supabase
+          .from("Balance")
+          .select("*")
+          .single();
+
+        const newBalanceCdf = balanceData.balance_cdf - amount;
+        // Mettre à jour la table Balance avec la nouvelle balance
+        const { error: updateBalanceError } = await supabase
+          .from("Balance")
+          .update({ balance_cdf: newBalanceCdf })
+          .eq("id", balanceData.id);
+
+        setBalanceChanged((prev: any) => !prev);
+
+        if (updateBalanceError) console.error(updateBalanceError);
         // Mettre à jour le tableau des clients
         const updatedClients = clients.map((client) =>
           client.id === selectedClientId

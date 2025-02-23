@@ -24,6 +24,7 @@ import {
   DialogActions,
 } from "@mui/material";
 import LoanRequestTab from "./LoanRequestTab";
+import { useAuth } from "../../contexts/AuthContext";
 
 const CreditManager = () => {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -39,6 +40,8 @@ const CreditManager = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isChangedData, setIsChangedData] = useState(false);
+
+  const { setBalanceChanged } = useAuth();
 
   useEffect(() => {
     getExchangeRate();
@@ -97,22 +100,39 @@ const CreditManager = () => {
     setOpenRepaymentDialog(true);
   };
 
-  const handleRepayment = (amount: number) => {
+  const handleRepayment = async (amount: number) => {
+    console.log("SELECTED CREDIT ", selectedCredit);
+
     if (selectedCredit) {
-      console.log(
-        `Rembourser: ${amount} $ pour le crédit ID ${selectedCredit.id}`
-      );
-      const updatedCredits = credits.map((c) => {
-        if (c.id === selectedCredit.id) {
-          return {
-            ...c,
-            remainingAmount: c.remainingAmount - amount,
-          };
-        }
-        return c;
-      });
-      setCredits(updatedCredits);
-      setOpenRepaymentDialog(false); // Ferme le dialogue après le remboursement
+      const { data: balanceData, error: balanceError } = await supabase
+        .from("Balance")
+        .select("*")
+        .single();
+
+      const { data: configData, error: configError } = await supabase
+        .from("config")
+        .select("change_rate, interest_rate")
+        .single();
+
+      if (configError) throw new Error("Error fetching configuration");
+
+      const oldBalanceUsd = balanceData.balance_usd;
+      const newBalanceUsd = oldBalanceUsd + amount;
+
+      // Mettre à jour la table Balance avec la nouvelle balance
+      const { error: updateBalanceError } = await supabase
+        .from("Balance")
+        .update({ balance_usd: newBalanceUsd })
+        .eq("id", balanceData.id);
+
+      console.log("usd bal", balanceData.id);
+
+      if (updateBalanceError) console.error(updateBalanceError);
+
+      setBalanceChanged((prev: any) => !prev);
+
+      setIsChangedData((prev) => !prev);
+      setOpenRepaymentDialog(false);
     }
   };
 
@@ -162,7 +182,7 @@ const CreditManager = () => {
     },
     {
       field: "total",
-      headerName: "Total",
+      headerName: "Total à rembourser",
       width: 180,
     },
     {
@@ -276,10 +296,12 @@ const CreditManager = () => {
         open={openDialog}
         setIsChangedData={setIsChangedData}
         onClose={handleCloseDialog}
+        exchangeRate={exchangeRate}
       />
       <ConfigurerTaux
         open={openConfigurerTaux}
-        exchangeRate={exchangeRate}
+        exchangeRate={exchangeRate || 0}
+        setExchangeRate={setExchangeRate}
         onClose={() => setOpenConfigurerTaux(false)}
         setIsChangedData={setIsChangedData}
       />

@@ -305,7 +305,7 @@ const LoanRequestPage = () => {
 
             <Grid item xs={6}>
               <TextField
-                label="Montant du Prêt"
+                label="Montant du Prêt en FC"
                 type="number"
                 value={loanAmount}
                 onChange={(e) => setLoanAmount(e.target.value)}

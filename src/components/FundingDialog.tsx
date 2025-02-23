@@ -45,7 +45,6 @@ const FundingDialog: React.FC<FundingDialogProps> = ({
 
       const oldBalanceCdf = balanceData.balance_cdf;
       const newBalanceCdf = oldBalanceCdf + amount;
-
       // Mettre à jour la table Balance avec la nouvelle balance
       const { error: updateBalanceError } = await supabase
         .from("Balance")
@@ -74,7 +73,7 @@ const FundingDialog: React.FC<FundingDialogProps> = ({
       setAmount(0);
       onClose(); // Fermer le dialogue
     } catch (error: any) {
-      console.error("Erreur lors de l'approvisionnement:", error.message);
+      console.error("Erreur lors de l'approvisionnement:", error);
     } finally {
       setLoading(false); // Arrêter le loader, qu'il y ait une erreur ou non
     }

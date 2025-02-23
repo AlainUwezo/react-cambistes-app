@@ -10,6 +10,7 @@ import { supabase } from "../lib/helpers/superbaseClient";
 const Sidebar = () => {
   const [openFundingDialog, setOpenFundingDialog] = useState(false);
   const [currentBalance, setCurrentBalance] = useState(0);
+  const [currentBalanceUsd, setCurrentBalanceUsd] = useState(0);
   const { userInfo, isBalanceChanged } = useAuth();
 
   useEffect(() => {
@@ -26,6 +27,7 @@ const Sidebar = () => {
     if (balanceError) throw balanceError;
 
     setCurrentBalance(balanceData.balance_cdf);
+    setCurrentBalanceUsd(balanceData.balance_usd);
   };
 
   const handleOpenFundingDialog = () => {
@@ -74,6 +76,9 @@ const Sidebar = () => {
               }}
             />
           </div>
+          <Typography className="font-mono text-gray-700 text-[14px]">
+            $ {currentBalanceUsd}
+          </Typography>
         </div>
         <div className="flex flex-col gap-3">
           {/* Transactions */}
