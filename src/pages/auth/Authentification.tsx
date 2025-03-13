@@ -29,17 +29,20 @@ const Authentication = () => {
       // Utilisation de la méthode signIn pour l'authentification via Supabase
       await signIn(email, password);
 
-      console.log("User infos ", userInfo);
-      if (userInfo.role == "ROLE_CLIENT") {
-        navigate("/currency-check");
+      if (userInfo) {
+        if (userInfo.role == "ROLE_CLIENT") {
+          navigate("/currency-check");
+        } else {
+          navigate("/home");
+        }
       } else {
-        navigate("/home"); // Redirection vers la page d'accueil en cas de succès
+        setError("Adresse e-mail ou mot de passe incorrect");
       }
     } catch (err: any) {
       console.log(err);
       setError("Adresse e-mail ou mot de passe incorrect");
     } finally {
-      setLoading(false); // Désactivation du loader une fois la requête terminée
+      setLoading(false);
     }
   };
 

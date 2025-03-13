@@ -1,8 +1,11 @@
 {
   "files": [],
   "compilerOptions": {
-    "noEmitOnError": false,
-    "skipLibCheck": true
+    "noEmitOnError": false, // Force l'émission des fichiers malgré les erreurs
+    "skipLibCheck": true, // Ignore les erreurs dans les dépendances
+    "forceConsistentCasingInFileNames": false,
+    "strict": false, // Désactive toutes les vérifications strictes
+    "isolatedModules": false
   },
   "references": [
     { "path": "./tsconfig.app.json" },

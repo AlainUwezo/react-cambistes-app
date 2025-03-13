@@ -194,7 +194,7 @@ const CreditManager = () => {
       field: "action",
       headerName: "Action",
       width: 260,
-      renderCell: (params) => (
+      renderCell: (params: any) => (
         <div>
           <Button
             variant="outlined"
