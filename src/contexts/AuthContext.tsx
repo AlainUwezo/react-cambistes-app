@@ -13,12 +13,13 @@ import { supabase } from "../lib/helpers/superbaseClient";
 interface AuthContextType {
   user: User | null;
   userInfo: any;
-  isBalanceChanged: any;
-  setBalanceChanged: any;
+  isBalanceChanged: boolean;
+  setBalanceChanged: React.Dispatch<React.SetStateAction<boolean>>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  setUserInfo: any;
+  setUserInfo: React.Dispatch<React.SetStateAction<any>>;
+  fetchUserInfo: (email: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,8 +37,14 @@ interface Props {
 }
 
 export const AuthProvider: React.FC<Props> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [userInfo, setUserInfo] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+  const [userInfo, setUserInfo] = useState<any>(() => {
+    const storedUserInfo = localStorage.getItem("userInfo");
+    return storedUserInfo ? JSON.parse(storedUserInfo) : null;
+  });
   const [isBalanceChanged, setBalanceChanged] = useState(false);
 
   useEffect(() => {
@@ -45,6 +52,9 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
       const { data: sessionData } = await supabase.auth.getSession();
       const currentUser = sessionData.session?.user ?? null;
       setUser(currentUser);
+      if (currentUser) {
+        localStorage.setItem("user", JSON.stringify(currentUser));
+      }
     };
 
     fetchSession();
@@ -53,6 +63,12 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
       async (_event, session) => {
         const currentUser = session?.user ?? null;
         setUser(currentUser);
+        if (currentUser) {
+          localStorage.setItem("user", JSON.stringify(currentUser));
+        } else {
+          localStorage.removeItem("user");
+          localStorage.removeItem("userInfo");
+        }
       }
     );
 
@@ -74,9 +90,10 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
 
     const currentUser = data.user;
     setUser(currentUser);
+    localStorage.setItem("user", JSON.stringify(currentUser));
 
     if (currentUser) {
-      await fetchUserInfo(currentUser.id);
+      await fetchUserInfo(email);
     }
   };
 
@@ -90,14 +107,17 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
 
     const newUser = data.user;
     setUser(newUser);
+    localStorage.setItem("user", JSON.stringify(newUser));
   };
 
-  const fetchUserInfo = async (auth_id: string) => {
+  const fetchUserInfo = async (email: string) => {
+    console.log("Email passé à fetchUserInfo :", email);
     const { data, error } = await supabase
       .from("Account")
       .select("id, user_name, role, auth_id, created_at")
-      .eq("auth_id", auth_id)
+      .eq("email", email)
       .single();
+    console.log("Données récupérées :", data);
 
     if (error) {
       console.error(
@@ -109,6 +129,8 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
 
     if (data) {
       setUserInfo(data);
+      localStorage.setItem("userInfo", JSON.stringify(data));
+      return data;
     }
   };
 
@@ -121,6 +143,9 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
 
     setUser(null);
+    setUserInfo(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("userInfo");
   };
 
   return (
@@ -134,6 +159,7 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
         userInfo,
         setBalanceChanged,
         isBalanceChanged,
+        fetchUserInfo,
       }}
     >
       {children}

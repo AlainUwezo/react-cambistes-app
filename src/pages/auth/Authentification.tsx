@@ -6,7 +6,7 @@ import {
   Typography,
   Box,
   InputAdornment,
-  CircularProgress, // Import du loader
+  CircularProgress,
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { AccountCircle, Lock } from "@mui/icons-material";
@@ -16,30 +16,36 @@ const Authentication = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // État pour gérer le loader
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signIn, userInfo } = useAuth();
+  const { signIn, userInfo, fetchUserInfo } = useAuth(); // Ajout explicite
 
-  // Fonction pour gérer la connexion via Supabase
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true); // Activation du loader au début de la requête
+    setLoading(true);
+
     try {
-      // Utilisation de la méthode signIn pour l'authentification via Supabase
+      // Authentification utilisateur
       await signIn(email, password);
 
-      if (userInfo) {
-        if (userInfo.role == "ROLE_CLIENT") {
+      // Attendre la récupération des informations utilisateur
+      const userInfoFetched = await fetchUserInfo(email); // Utilisation d'async/await
+      console.log("Informations utilisateur récupérées :", userInfoFetched);
+
+      if (userInfoFetched) {
+        // console.log("Informations utilisateur récupérées :", userInfoFetched);
+        // Navigation en fonction du rôle utilisateur
+        if (userInfoFetched.role === "ROLE_CLIENT") {
           navigate("/currency-check");
         } else {
           navigate("/home");
         }
       } else {
-        setError("Adresse e-mail ou mot de passe incorrect");
+        setError("Erreur lors de la récupération des informations utilisateur");
       }
     } catch (err: any) {
-      console.log(err);
+      console.error("Erreur lors de la connexion :", err.message);
       setError("Adresse e-mail ou mot de passe incorrect");
     } finally {
       setLoading(false);
@@ -47,32 +53,37 @@ const Authentication = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f5f5f5",
+      }}
+    >
       <Box
         sx={{
           width: 400,
-          p: 4,
-          backgroundColor: "#fff",
-          boxShadow: 3,
-          borderRadius: 4,
+          padding: 4,
+          borderRadius: 3,
+          boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.15)",
+          backgroundColor: "white",
           textAlign: "center",
         }}
       >
-        {/* Titre */}
         <Typography
           variant="h4"
           gutterBottom
-          style={{ color: "#1976d2", fontWeight: "bold" }}
+          sx={{ color: "#1565c0", fontWeight: 700 }}
         >
           Bienvenue !
         </Typography>
-        <Typography variant="body2" gutterBottom>
+        <Typography variant="body2" sx={{ marginBottom: 3, color: "#757575" }}>
           Connectez-vous pour accéder à votre espace utilisateur
         </Typography>
 
-        {/* Formulaire */}
         <form onSubmit={handleLogin}>
-          {/* Champ Email */}
           <TextField
             fullWidth
             label="Adresse e-mail"
@@ -89,7 +100,6 @@ const Authentication = () => {
             }}
           />
 
-          {/* Champ Mot de passe */}
           <TextField
             fullWidth
             label="Mot de passe"
@@ -107,46 +117,49 @@ const Authentication = () => {
             }}
           />
 
-          {/* Message d'erreur */}
           {error && (
-            <Typography variant="body2" color="error" gutterBottom>
+            <Typography
+              variant="body2"
+              color="error"
+              sx={{ marginTop: 2, fontSize: "0.875rem" }}
+            >
               {error}
             </Typography>
           )}
 
-          {/* Bouton de soumission avec loader */}
           <Button
             type="submit"
-            variant="contained"
-            color="primary"
             fullWidth
-            style={{
-              marginTop: "16px",
+            variant="contained"
+            sx={{
+              marginTop: 2,
               padding: "12px",
               backgroundColor: "#1976d2",
+              "&:hover": { backgroundColor: "#125ca1" },
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
-            disabled={loading} // Désactiver le bouton pendant le chargement
+            disabled={loading}
           >
             {loading ? (
               <CircularProgress size={24} color="inherit" />
             ) : (
               "Se connecter"
-            )}{" "}
-            {/* Affichage du loader ou du texte */}
+            )}
           </Button>
         </form>
 
-        {/* Texte additionnel */}
-        <Typography
-          variant="body2"
-          style={{ marginTop: "16px", color: "#555" }}
-        >
+        <Typography variant="body2" sx={{ marginTop: 2, color: "#757575" }}>
           Vous n'avez pas de compte ?{" "}
-          <Link to={"/signup"}>
-            <span style={{ color: "#1976d2", cursor: "pointer" }}>
+          <Link to={"/signup"} style={{ textDecoration: "none" }}>
+            <span
+              style={{
+                color: "#1976d2",
+                cursor: "pointer",
+                fontWeight: 500,
+              }}
+            >
               Inscrivez-vous
             </span>
           </Link>

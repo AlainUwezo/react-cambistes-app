@@ -29,7 +29,7 @@ const Signup = () => {
     }
 
     try {
-      await signUp(email, password, username);
+      await signUp(email, password);
       navigate("/home");
     } catch (err: any) {
       setError(err.message || "Erreur lors de l'inscription");
