@@ -40,6 +40,7 @@ const CreditManager = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isChangedData, setIsChangedData] = useState(false);
+  const { userInfo } = useAuth();
 
   const { setBalanceChanged } = useAuth();
 
@@ -231,7 +232,9 @@ const CreditManager = () => {
             indicatorColor="primary"
           >
             <Tab label="Crédits" />
-            <Tab label="Demandes de prêts" />
+            {userInfo?.role === "ROLE_ADMIN" && (
+              <Tab label="Demandes de prêts" />
+            )}
           </Tabs>
         </AppBar>
         {/* Filter Elements - DatePickers and Buttons */}

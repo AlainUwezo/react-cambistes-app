@@ -10,6 +10,7 @@ import {
   Divider,
 } from "@mui/material";
 import { supabase } from "../../lib/helpers/superbaseClient";
+import axios from "axios";
 
 const LoanRequestTab = () => {
   const [requests, setRequests] = useState<any[]>([]);
@@ -33,11 +34,48 @@ const LoanRequestTab = () => {
     setLoading(false);
   };
 
-  const handleValidateRequest = async (id: number) => {
+  const sendEmail = async (
+    clientEmail: string,
+    status: "0" | "1",
+    clientName: string,
+    loanAmount: number,
+    repaymentDate: Date | string
+  ) => {
+    const data = {
+      clientEmail: clientEmail,
+      status: status,
+      clientName: clientName,
+      loanAmount: loanAmount,
+      repaymentDate: repaymentDate,
+      senderEmail: "20au004@esisalama.org",
+    };
+
+    console.log("Voici la data de email : ", data);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/send-email",
+        data
+      );
+      console.log(response);
+    } catch (error) {
+      console.error("Erreur lors de l'appel à l'API :", error);
+    }
+  };
+
+  const handleValidateRequest = async (request: any) => {
     const { error } = await supabase
       .from("DemandeCredit")
       .update({ statut: "VALIDE" })
-      .eq("id", id);
+      .eq("id", request.id);
+
+    sendEmail(
+      request.email,
+      "1",
+      `${request.prenom} ${request.nom}`,
+      request.montant,
+      request.date_remboursement
+    );
 
     if (error) {
       console.error(
@@ -49,11 +87,19 @@ const LoanRequestTab = () => {
     }
   };
 
-  const handleRejectRequest = async (id: number) => {
+  const handleRejectRequest = async (request: any) => {
     const { error } = await supabase
       .from("DemandeCredit")
       .update({ statut: "REJETER" })
-      .eq("id", id);
+      .eq("id", request.id);
+
+    sendEmail(
+      request.email,
+      "0",
+      `${request.prenom} ${request.nom}`,
+      request.montant,
+      request.date_remboursement
+    );
 
     if (error) {
       console.error(
@@ -107,7 +153,7 @@ const LoanRequestTab = () => {
                       <Button
                         variant="contained"
                         color="primary"
-                        onClick={() => handleValidateRequest(request.id)}
+                        onClick={() => handleValidateRequest(request)}
                         style={{ marginRight: 8 }}
                       >
                         Valider
@@ -117,7 +163,7 @@ const LoanRequestTab = () => {
                       <Button
                         variant="contained"
                         color="secondary"
-                        onClick={() => handleRejectRequest(request.id)}
+                        onClick={() => handleRejectRequest(request)}
                       >
                         Rejeter
                       </Button>

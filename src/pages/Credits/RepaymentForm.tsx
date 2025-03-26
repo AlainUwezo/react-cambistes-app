@@ -81,20 +81,27 @@ const RepaymentForm: React.FC<RepaymentFormProps> = ({
     }
   };
 
+  const handleRepaymentAmountChanged = (value: number) => {
+    setRepaymentAmount(value);
+  };
+
   return (
     <div className="flex flex-col items-center">
       <TextField
         type="number"
         label="Montant à rembourser ($)"
         value={repaymentAmount || ""}
-        onChange={(e) => setRepaymentAmount(Number(e.target.value))}
+        onChange={(e) => handleRepaymentAmountChanged(+e.target.value)}
         variant="outlined"
         fullWidth
         margin="normal"
       />
       <Typography variant="body1" color="textSecondary" sx={{ marginTop: 2 }}>
-        Montant restant après remboursement :{" "}
-        {balanceAfterRepayment && balanceAfterRepayment.toFixed(2)} FC
+        Montant restant après remboursement :
+        {balanceAfterRepayment &&
+          exchangeRate &&
+          (balanceAfterRepayment / exchangeRate).toFixed(2)}{" "}
+        FC
       </Typography>
       <Button
         onClick={handleSubmit}

@@ -39,7 +39,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="bg-white w-64 h-screen flex flex-col justify-between p-8">
+    <div className="fixed min-h-[100vh] bg-white w-64 h-screen flex flex-col justify-between p-8">
       {/* Top Section */}
       <div>
         {/* Sidebar Menu */}
@@ -53,7 +53,13 @@ const Sidebar = () => {
               {userInfo?.user_name || "Invité"}
             </Typography>
             <Typography className="text-gray-500 text-sm">
-              {userInfo?.role ? "Resp. Transaction" : ""}
+              {userInfo?.role === "ROLE_ADMIN"
+                ? "Administrateur"
+                : userInfo?.role === "ROLE_MICROCREDIT"
+                ? "Resp. Microcrédit"
+                : userInfo?.role === "ROLE_CHANGE"
+                ? "Resp. Change"
+                : ""}
             </Typography>
           </div>
         </div>
@@ -82,56 +88,67 @@ const Sidebar = () => {
         </div>
         <div className="flex flex-col gap-3">
           {/* Transactions */}
-          <NavLink
-            to="/home"
-            className={({ isActive }) =>
-              `flex items-center text-left justify-start w-full ${
-                isActive ? "text-blue-500 font-bold" : "text-gray-700"
-              }`
-            }
-          >
-            <Receipt className="w-4" />
-            <span className="ml-2 capitalize">Transactions</span>
-          </NavLink>
+          {(userInfo.role === "ROLE_CHANGE" ||
+            userInfo.role === "ROLE_ADMIN") && (
+            <NavLink
+              to="/home"
+              className={({ isActive }) =>
+                `flex items-center text-left justify-start w-full ${
+                  isActive ? "text-blue-500 font-bold" : "text-gray-700"
+                }`
+              }
+            >
+              <Receipt className="w-4" />
+              <span className="ml-2 capitalize">Transactions</span>
+            </NavLink>
+          )}
 
           {/* Payments */}
-          <NavLink
-            to="/credits"
-            className={({ isActive }) =>
-              `flex items-center text-left justify-start w-full ${
-                isActive ? "text-blue-500 font-bold" : "text-gray-700"
-              }`
-            }
-          >
-            <Payment className="w-4" />
-            <span className="ml-2 capitalize">Crédits</span>
-          </NavLink>
+          {(userInfo.role === "ROLE_MICROCREDIT" ||
+            userInfo.role === "ROLE_ADMIN") && (
+            <NavLink
+              to="/credits"
+              className={({ isActive }) =>
+                `flex items-center text-left justify-start w-full ${
+                  isActive ? "text-blue-500 font-bold" : "text-gray-700"
+                }`
+              }
+            >
+              <Payment className="w-4" />
+              <span className="ml-2 capitalize">Crédits</span>
+            </NavLink>
+          )}
 
           {/* Cards */}
-          <NavLink
-            to="/clients"
-            className={({ isActive }) =>
-              `flex items-center text-left justify-start w-full ${
-                isActive ? "text-blue-500 font-bold" : "text-gray-700"
-              }`
-            }
-          >
-            <Person className="w-4" />
-            <span className="ml-2 capitalize">Clients</span>
-          </NavLink>
+          {(userInfo.role === "ROLE_ADMIN" ||
+            userInfo.role === "ROLE_CHANGE") && (
+            <NavLink
+              to="/clients"
+              className={({ isActive }) =>
+                `flex items-center text-left justify-start w-full ${
+                  isActive ? "text-blue-500 font-bold" : "text-gray-700"
+                }`
+              }
+            >
+              <Person className="w-4" />
+              <span className="ml-2 capitalize">Clients</span>
+            </NavLink>
+          )}
 
           {/* Administration */}
-          <NavLink
-            to="/administration"
-            className={({ isActive }) =>
-              `flex items-center text-left justify-start w-full ${
-                isActive ? "text-blue-500 font-bold" : "text-gray-700"
-              }`
-            }
-          >
-            <Settings className="w-4" />
-            <span className="ml-2 capitalize">Administration</span>
-          </NavLink>
+          {userInfo.role === "ROLE_ADMIN" && (
+            <NavLink
+              to="/administration"
+              className={({ isActive }) =>
+                `flex items-center text-left justify-start w-full ${
+                  isActive ? "text-blue-500 font-bold" : "text-gray-700"
+                }`
+              }
+            >
+              <Settings className="w-4" />
+              <span className="ml-2 capitalize">Administration</span>
+            </NavLink>
+          )}
         </div>
       </div>
 

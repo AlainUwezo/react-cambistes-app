@@ -9,27 +9,18 @@ interface PageContainerProps {
 
 const PageContainer: React.FC<PageContainerProps> = ({ children }) => {
   return (
-    <Box
-      sx={{
-        display: "flex",
-        minHeight: "100vh",
-        backgroundColor: "#f4f6f8",
-      }}
-    >
+    <div className="min-h-[100vh] flex">
       {/* Sidebar */}
       <Sidebar />
 
-      {/* Main content */}
-      <Box sx={{ flexGrow: 1 }}>
+      <div className="flex-grow ms-64">
         {/* AppBar */}
         <Header />
 
         {/* Content */}
-        <Box sx={{ padding: 3, background: "white", minHeight: "630px" }}>
-          {children}
-        </Box>
-      </Box>
-    </Box>
+        <div>{children}</div>
+      </div>
+    </div>
   );
 };
 

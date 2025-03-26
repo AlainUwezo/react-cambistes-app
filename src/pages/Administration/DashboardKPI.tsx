@@ -35,6 +35,7 @@ const DashboardKPI = () => {
 
         if (balanceActuelle) {
           setBalanceCdf(balanceActuelle.balance_cdf);
+          setTotalAmount(balanceActuelle.balance_usd);
         }
 
         // Fetch balance actuelle
@@ -47,20 +48,6 @@ const DashboardKPI = () => {
 
         if (balanceData && balanceData.length > 0) {
           setBalanceHistory(balanceData); // Stocke l'historique des balances
-        }
-
-        // Fetch total amount (sum of all transactions in USD)
-        const { data: transactionData, error: transactionError } =
-          await supabase.from("Transaction").select("amount");
-
-        if (transactionError) throw new Error("Error fetching total amount");
-
-        if (transactionData) {
-          const totalAmountValue = transactionData.reduce(
-            (acc, row) => acc + row.amount,
-            0
-          );
-          setTotalAmount(totalAmountValue);
         }
 
         // Fetch total fidelity bonus
@@ -90,7 +77,7 @@ const DashboardKPI = () => {
           setExchangeRate(configData.change_rate);
           setInterestRate(configData.interest_rate);
         }
-      } catch (err) {
+      } catch (err: any) {
         setError(err.message);
       } finally {
         setLoading(false);
